@@ -154,9 +154,9 @@ class ProductService {
 
     /**
      * Update product
-     * @param {number} id - Product ID
-     * @param {object} productData - Product data to update
-     * @returns {object} Updated product
+     * @param {number} id 
+     * @param {object} productData - 
+     * @returns {object} 
      */
     async updateProduct(id, productData) {
         // Check if product exists
@@ -177,7 +177,7 @@ class ProductService {
             }
         }
         
-        // Build dynamic update query
+  
         const updates = [];
         const values = [];
         

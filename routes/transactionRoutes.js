@@ -53,11 +53,26 @@ router.get('/user/:userId', listTransactionsValidation, transactionController.ge
  */
 router.get('/:id', getTransactionValidation, transactionController.getTransactionById);
 
+
 /**
- * @route   POST /api/transactions/:id/cancel
- * @desc    Cancel/Refund transaction
+ * @route   PATCH /api/transactions/:id/cancel
+ * @desc    Cancel transaction (only for PENDING)
  * @access  Public
  */
-router.post('/:id/cancel', getTransactionValidation, transactionController.cancelTransaction);
+router.patch('/:id/cancel', getTransactionValidation, transactionController.cancelTransaction);
+
+/**
+ * @route   PATCH /api/transactions/:id/refund
+ * @desc    Refund transaction (only for SUCCESS)
+ * @access  Public
+ */
+router.patch('/:id/refund', getTransactionValidation, transactionController.refundTransaction);
+
+/**
+ * @route   DELETE /api/transactions/:id
+ * @desc    Delete transaction by ID
+ * @access  Public
+ */
+router.delete('/:id', getTransactionValidation, transactionController.deleteTransaction);
 
 module.exports = router;

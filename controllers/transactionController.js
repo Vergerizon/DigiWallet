@@ -1,8 +1,3 @@
-/**
- * Transaction Controller
- * Handles HTTP requests untuk transaction endpoints
- */
-
 const transactionService = require('../services/transactionService');
 const { 
     successResponse, 
@@ -14,6 +9,22 @@ const {
 } = require('../utils/respons');
 
 class TransactionController {
+        /**
+         * Delete transaction by ID
+         * DELETE /api/transactions/:id
+         */
+        async deleteTransaction(req, res) {
+            try {
+                await transactionService.deleteTransaction(parseInt(req.params.id));
+                return successResponse(res, null, 'Transaksi berhasil dihapus');
+            } catch (error) {
+                return errorResponse(
+                    res,
+                    error.message,
+                    error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR
+                );
+            }
+        }
     /**
      * Create new transaction (purchase PPOB product)
      * POST /api/transactions
@@ -138,13 +149,30 @@ class TransactionController {
     }
 
     /**
-     * Cancel/Refund transaction
-     * POST /api/transactions/:id/cancel
+     * Cancel transaction (only for PENDING)
+     * PATCH /api/transactions/:id/cancel
      */
     async cancelTransaction(req, res) {
         try {
             const transaction = await transactionService.cancelTransaction(parseInt(req.params.id));
             return successResponse(res, transaction, 'Transaksi berhasil dibatalkan dan dana dikembalikan');
+        } catch (error) {
+            return errorResponse(
+                res, 
+                error.message, 
+                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Refund transaction (only for SUCCESS)
+     * PATCH /api/transactions/:id/refund
+     */
+    async refundTransaction(req, res) {
+        try {
+            const transaction = await transactionService.refundTransaction(parseInt(req.params.id));
+            return successResponse(res, transaction, 'Transaksi berhasil direfund dan dana dikembalikan');
         } catch (error) {
             return errorResponse(
                 res, 

@@ -242,3 +242,7 @@ LEFT JOIN categories p ON c.parent_id = p.id;
 --     SELECT c.id, c.name, CONCAT(cp.path, ' > ', c.name)
 --     FROM category_path AS cp JOIN categories AS c ON cp.id = c.parent_id
 -- ) SELECT * FROM category_path;
+
+-- Ubah definisi tabel transactions:
+ALTER TABLE transactions 
+MODIFY status ENUM('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED') DEFAULT 'PENDING';

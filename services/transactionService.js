@@ -1,15 +1,109 @@
-/**
- * Transaction Service
- * Business logic untuk operasi transaksi PPOB
- * Menggunakan database transaction untuk konsistensi data
- */
-
+// Import harus di atas
 const { pool } = require('../database/config');
 const { ERROR_MESSAGES } = require('../utils/respons');
 const userService = require('./userService');
 const productService = require('./productService');
 
 class TransactionService {
+    /**
+     * Delete transaction by ID
+     * @param {number} id - Transaction ID
+     */
+    async deleteTransaction(id) {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Pastikan transaksi ada
+            const [transactions] = await connection.query(
+                'SELECT * FROM transactions WHERE id = ?',
+                [id]
+            );
+            if (transactions.length === 0) {
+                const error = new Error(ERROR_MESSAGES.TRANSACTION_NOT_FOUND);
+                error.status = 404;
+                throw error;
+            }
+            await connection.query('DELETE FROM transactions WHERE id = ?', [id]);
+            await connection.commit();
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+    /**
+     * Refund a successful transaction (manual process)
+     * @param {number} id - Transaction ID
+     * @returns {object} Updated transaction with refund details
+     */
+    async refundTransaction(id) {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Get transaction with lock
+            const [transactions] = await connection.query(
+                'SELECT * FROM transactions WHERE id = ? FOR UPDATE',
+                [id]
+            );
+
+            if (transactions.length === 0) {
+                const error = new Error(ERROR_MESSAGES.TRANSACTION_NOT_FOUND);
+                error.status = 404;
+                throw error;
+            }
+
+            const transaction = transactions[0];
+
+            // Check if already refunded
+            if (transaction.status === 'REFUNDED') {
+                const error = new Error('Transaksi sudah direfund sebelumnya');
+                error.status = 400;
+                throw error;
+            }
+
+            // Only SUCCESS transactions can be refunded
+            if (transaction.status !== 'SUCCESS') {
+                const error = new Error('Hanya transaksi SUCCESS yang dapat direfund');
+                error.status = 400;
+                throw error;
+            }
+
+            // Refund balance to user
+            await connection.query(
+                'UPDATE users SET balance = balance + ? WHERE id = ?',
+                [transaction.amount, transaction.user_id]
+            );
+
+            // Get user's new balance
+            const [users] = await connection.query(
+                'SELECT balance FROM users WHERE id = ?',
+                [transaction.user_id]
+            );
+
+            // Update transaction status to REFUNDED
+            await connection.query(
+                "UPDATE transactions SET status = 'REFUNDED', notes = 'Transaksi direfund dan dana dikembalikan' WHERE id = ?",
+                [id]
+            );
+
+            await connection.commit();
+
+            const updatedTransaction = await this.getTransactionById(id);
+
+            return {
+                ...updatedTransaction,
+                refunded_amount: parseFloat(transaction.amount).toFixed(2),
+                user_new_balance: parseFloat(users[0].balance).toFixed(2)
+            };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
     /**
      * Generate unique reference number
      * @returns {string} Reference number
@@ -338,10 +432,10 @@ class TransactionService {
                 error.status = 400;
                 throw error;
             }
-            
-            // Only SUCCESS transactions can be refunded
-            if (transaction.status !== 'SUCCESS') {
-                const error = new Error('Hanya transaksi SUCCESS yang dapat dibatalkan');
+
+            // Only PENDING transactions can be cancelled
+            if (transaction.status !== 'PENDING') {
+                const error = new Error('Hanya transaksi PENDING yang dapat dibatalkan');
                 error.status = 400;
                 throw error;
             }
