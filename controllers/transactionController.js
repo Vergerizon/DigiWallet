@@ -96,7 +96,8 @@ class TransactionController {
                 return errorResponse(
                     res, 
                     error.message, 
-                    error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR
+                    error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                    error
                 );
             }
         }

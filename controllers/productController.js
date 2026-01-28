@@ -69,7 +69,8 @@ class ProductController {
             return errorResponse(
                 res, 
                 error && error.message ? error.message : 'Terjadi kesalahan',
-                error && error.status ? error.status : HTTP_STATUS.INTERNAL_SERVER_ERROR
+                error && error.status ? error.status : HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                error
             );
         }
     }

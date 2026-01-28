@@ -17,6 +17,21 @@ class CategoryService {
         const { name, parent_id, description, is_active = true } = categoryData;
         // Pastikan kapitalisasi nama kategori
         const fixedName = toTitleCase(name);
+        // Cek duplikasi kategori dengan nama dan parent_id yang sama
+        let duplicateQuery = 'SELECT id FROM categories WHERE name = ?';
+        let duplicateParams = [fixedName];
+        if (parent_id) {
+            duplicateQuery += ' AND parent_id = ?';
+            duplicateParams.push(parent_id);
+        } else {
+            duplicateQuery += ' AND parent_id IS NULL';
+        }
+        const [dupes] = await pool.query(duplicateQuery, duplicateParams);
+        if (dupes.length > 0) {
+            const error = new Error('Kategori sudah ada.');
+            error.status = 409;
+            throw error;
+        }
         // Validate parent exists if provided
         if (parent_id) {
             const [parent] = await pool.query(

@@ -41,7 +41,8 @@ class CategoryController {
                 res,
                 error && error.message ? error.message : 'Terjadi kesalahan',
                 status,
-                error && error.details ? error.details : error
+                error && error.details ? error.details : error,
+                error
             );
         }
     }
@@ -174,7 +175,8 @@ class CategoryController {
             return errorResponse(
                 res, 
                 error.message, 
-                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR
+                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                error
             );
         }
     }
@@ -194,7 +196,8 @@ class CategoryController {
             return errorResponse(
                 res, 
                 error.message, 
-                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR
+                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                error
             );
         }
     }

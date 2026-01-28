@@ -17,6 +17,19 @@ class ProductService {
         const { name, category_id, type, price, description, is_active = true } = productData;
         // Pastikan kapitalisasi nama produk
         const fixedName = toTitleCase(name);
+        // Cek duplikasi produk berdasarkan nama (dan kategori jika diperlukan)
+        let duplicateQuery = 'SELECT id FROM products WHERE name = ?';
+        let duplicateParams = [fixedName];
+        if (category_id) {
+            duplicateQuery += ' AND category_id = ?';
+            duplicateParams.push(category_id);
+        }
+        const [dupes] = await pool.query(duplicateQuery, duplicateParams);
+        if (dupes.length > 0) {
+            const error = new Error('Produk dengan nama yang sama sudah ada.');
+            error.status = 409;
+            throw error;
+        }
         // Validate category exists if provided
         if (category_id) {
             const [category] = await pool.query(
