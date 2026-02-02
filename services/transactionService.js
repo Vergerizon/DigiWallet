@@ -4,6 +4,9 @@ const { ERROR_MESSAGES } = require('../utils/respons');
 const userService = require('./userService');
 const productService = require('./productService');
 
+// Tax rate constant (11%)
+const TAX_RATE = 0.11;
+
 class TransactionService {
     /**
      * Delete transaction by ID
@@ -164,27 +167,30 @@ class TransactionService {
                 throw error;
             }
             
-            // 3. Validate user balance
-            const amount = parseFloat(product.price);
+            // 3. Calculate price with tax
+            const subtotal = parseFloat(product.price);
+            const tax = subtotal * TAX_RATE; // 11% tax
+            const amount = subtotal + tax; // Total amount with tax
             const currentBalance = parseFloat(user.balance);
             
+            // 4. Validate user balance
             if (currentBalance < amount) {
                 const error = new Error(ERROR_MESSAGES.INSUFFICIENT_BALANCE);
                 error.status = 400;
                 throw error;
             }
             
-            // 4. Generate reference number
+            // 5. Generate reference number
             const referenceNumber = this.generateReferenceNumber();
             
-            // 5. Deduct user balance
+            // 6. Deduct user balance (total with tax)
             const newBalance = currentBalance - amount;
             await connection.query(
                 'UPDATE users SET balance = ? WHERE id = ?',
                 [newBalance, user_id]
             );
             
-            // 6. Create transaction record with PENDING status
+            // 7. Create transaction record with PENDING status
             const [result] = await connection.query(
                 `INSERT INTO transactions 
                  (user_id, product_id, customer_number, amount, status, reference_number) 
@@ -192,13 +198,18 @@ class TransactionService {
                 [user_id, product_id, customer_number, amount, referenceNumber]
             );
             
-            // 7. Commit transaction
+            // 8. Commit transaction
             await connection.commit();
             
             // Get the created transaction
             const createdTransaction = await this.getTransactionById(result.insertId);
             
-            // 8. Schedule auto-complete after 3 minutes
+            // Add tax breakdown to response
+            createdTransaction.subtotal = subtotal.toFixed(2);
+            createdTransaction.tax = tax.toFixed(2);
+            createdTransaction.tax_rate = '11%';
+            
+            // 9. Schedule auto-complete after 3 minutes
             setTimeout(async () => {
                 try {
                     // Check if transaction is still PENDING before auto-completing
@@ -279,7 +290,21 @@ class TransactionService {
             throw error;
         }
         
-        return rows[0];
+        const transaction = rows[0];
+        
+        // Calculate tax breakdown (11%)
+        const amount = parseFloat(transaction.amount);
+        const subtotal = amount / (1 + TAX_RATE);
+        const tax = amount - subtotal;
+        
+        // Remove sensitive fields
+        const { id: transactionId, user_id, user_email, product_id, ...filteredTransaction } = transaction;
+        
+        return {
+            ...filteredTransaction,
+            subtotal: subtotal.toFixed(2),
+            tax: tax.toFixed(2)
+        };
     }
 
     /**
@@ -317,7 +342,21 @@ class TransactionService {
             throw error;
         }
         
-        return rows[0];
+        const transaction = rows[0];
+        
+        // Calculate tax breakdown (11%)
+        const amount = parseFloat(transaction.amount);
+        const subtotal = amount / (1 + TAX_RATE);
+        const tax = amount - subtotal;
+        
+        // Remove sensitive fields
+        const { id: transactionId, user_id, user_email, ...filteredTransaction } = transaction;
+        
+        return {
+            ...filteredTransaction,
+            subtotal: subtotal.toFixed(2),
+            tax: tax.toFixed(2)
+        };
     }
 
     /**
