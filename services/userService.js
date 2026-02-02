@@ -62,36 +62,6 @@ class UserService {
         return this.getUserById(result.insertId);
     }
 
-    async updateUser(id, userData) {
-        const { name, email, phone_number } = userData;
-        const updates = [];
-        const values = [];
-        if (name !== undefined) {
-            updates.push('name = ?');
-            values.push(toTitleCase(name));
-        }
-        if (email !== undefined) {
-            updates.push('email = ?');
-            values.push(email);
-        }
-            // Format phone number: replace leading 0 with +62
-            if (phone_number && typeof phone_number === 'string') {
-                userData.phone_number = phone_number.replace(/^0/, '+62');
-            }
-            if (userData.phone_number !== undefined) {
-                updates.push('phone_number = ?');
-                values.push(userData.phone_number);
-            }
-        if (updates.length > 0) {
-            values.push(id);
-            await pool.query(
-                `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-                values
-            );
-        }
-        return this.getUserById(id);
-    }
-
     /**
      * Get all users with pagination
      * @param {number} page - Page number

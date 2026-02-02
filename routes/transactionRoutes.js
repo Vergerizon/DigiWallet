@@ -25,7 +25,7 @@ router.post('/',
     authMiddleware,
     (req, res, next) => {
         if (req.user.role !== 'USER') {
-            return res.status(403).json({ message: 'Forbidden: Only USER can create transaction' });
+            return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya user yang dapat membuat transaksi' });
         }
         next();
     },
@@ -42,7 +42,7 @@ router.post('/',
 // Only admin can get all transactions
 router.get('/', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat melihat semua transaksi' });
     }
     next();
 }, listTransactionsValidation, transactionController.getTransactions);
@@ -62,7 +62,7 @@ router.get('/reference/:reference', transactionController.getTransactionByRefere
 // User can get their own transactions, admin can get any
 router.get('/user/:userId', authMiddleware, listTransactionsValidation, (req, res, next) => {
     if (req.user.role !== 'ADMIN' && req.user.id !== parseInt(req.params.userId)) {
-        return res.status(403).json({ message: 'Forbidden: Can only access own transactions' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya dapat melihat transaksi sendiri' });
     }
     next();
 }, transactionController.getTransactionsByUser);
@@ -88,6 +88,18 @@ router.patch('/:id/cancel', getTransactionValidation, transactionController.canc
  * @access  Public
  */
 router.patch('/:id/refund', getTransactionValidation, transactionController.refundTransaction);
+
+/**
+ * @route   PATCH /api/transactions/:id/complete
+ * @desc    Complete transaction (mark as SUCCESS) - Admin only
+ * @access  Admin only
+ */
+router.patch('/:id/complete', authMiddleware, (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat menyelesaikan transaksi' });
+    }
+    next();
+}, getTransactionValidation, transactionController.completeTransaction);
 
 /**
  * @route   DELETE /api/transactions/:id

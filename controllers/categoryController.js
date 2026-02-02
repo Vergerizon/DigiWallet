@@ -51,7 +51,7 @@ class CategoryController {
      * Get all categories
      * GET /api/categories
      */
-    async getCategories(req, res) {
+    getCategories = async (req, res) => {
         try {
             const options = {
                 parent_id: req.query.parent_id !== undefined ? req.query.parent_id : null,
@@ -62,7 +62,13 @@ class CategoryController {
                 sortDir: req.query.sortDir || 'ASC',
                 description: req.query.description || null
             };
-            const categories = await categoryService.getCategories(options);
+            let categories = await categoryService.getCategories(options);
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                categories = this.filterCategoryFields(categories);
+            }
+            
             return successResponse(res, categories, 'Daftar category berhasil diambil');
         } catch (error) {
             return errorResponse(
@@ -78,9 +84,15 @@ class CategoryController {
      * Get category by ID
      * GET /api/categories/:id
      */
-    async getCategoryById(req, res) {
+    getCategoryById = async (req, res) => {
         try {
-            const category = await categoryService.getCategoryById(parseInt(req.params.id));
+            let category = await categoryService.getCategoryById(parseInt(req.params.id));
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                category = this.filterCategoryFields(category);
+            }
+            
             return successResponse(res, category, 'Data category berhasil diambil');
         } catch (error) {
             return errorResponse(
@@ -96,9 +108,15 @@ class CategoryController {
      * Get category with its products
      * GET /api/categories/:id/products
      */
-    async getCategoryWithProducts(req, res) {
+    getCategoryWithProducts = async (req, res) => {
         try {
-            const category = await categoryService.getCategoryWithProducts(parseInt(req.params.id));
+            let category = await categoryService.getCategoryWithProducts(parseInt(req.params.id));
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                category = this.filterCategoryFields(category);
+            }
+            
             return successResponse(res, category, 'Data category dengan produk berhasil diambil');
         } catch (error) {
             return errorResponse(
@@ -114,9 +132,15 @@ class CategoryController {
      * Get subcategories
      * GET /api/categories/:id/subcategories
      */
-    async getSubcategories(req, res) {
+    getSubcategories = async (req, res) => {
         try {
-            const subcategories = await categoryService.getSubcategories(parseInt(req.params.id));
+            let subcategories = await categoryService.getSubcategories(parseInt(req.params.id));
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                subcategories = this.filterCategoryFields(subcategories);
+            }
+            
             return successResponse(res, subcategories, 'Daftar subcategory berhasil diambil');
         } catch (error) {
             return errorResponse(
@@ -129,9 +153,15 @@ class CategoryController {
     }
 
     
-    async getCategoryPath(req, res) {
+    getCategoryPath = async (req, res) => {
         try {
-            const path = await categoryService.getCategoryPath(parseInt(req.params.id));
+            let path = await categoryService.getCategoryPath(parseInt(req.params.id));
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                path = this.filterCategoryFields(path);
+            }
+            
             return successResponse(res, path, 'Category path berhasil diambil');
         } catch (error) {
             return errorResponse(
@@ -201,6 +231,56 @@ class CategoryController {
                 error
             );
         }
+    }
+
+    /**
+     * Filter category fields for USER role
+     * Only show name and description
+     */
+    filterCategoryFields(data) {
+        if (!data) return data;
+        
+        const self = this; // Save reference to this
+        
+        const filterCategory = (cat) => {
+            if (!cat) return cat;
+            const filtered = {
+                name: cat.name,
+                description: cat.description || null
+            };
+            // If category has children/subcategories, filter them too
+            if (cat.children && Array.isArray(cat.children)) {
+                filtered.children = cat.children.map(child => self.filterCategoryFields(child));
+            }
+            // If category has products, filter them for USER
+            if (cat.products) {
+                filtered.products = Array.isArray(cat.products) 
+                    ? cat.products.map(p => self.filterProductFieldsForUser(p))
+                    : cat.products;
+            }
+            return filtered;
+        };
+        
+        // Handle array of categories
+        if (Array.isArray(data)) {
+            return data.map(item => filterCategory(item));
+        }
+        
+        // Handle single category
+        return filterCategory(data);
+    }
+
+    /**
+     * Filter product fields for USER role (used in category responses)
+     * Only show name and price
+     */
+    filterProductFieldsForUser(product) {
+        if (!product) return product;
+        
+        return {
+            name: product.name,
+            price: product.price
+        };
     }
 }
 

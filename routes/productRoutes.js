@@ -22,7 +22,7 @@ const { authMiddleware } = require('../middleware/auth');
 // Only admin can create product
 router.post('/', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat membuat produk' });
     }
     next();
 }, createProductValidation, productController.createProduct);
@@ -30,21 +30,21 @@ router.post('/', authMiddleware, (req, res, next) => {
 /**
  * @route   GET /api/products
  * @desc    Get all products with pagination and filters
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
 router.get('/', authMiddleware, listProductsValidation, productController.getProducts);
 
 /**
  * @route   GET /api/products/type/:type
  * @desc    Get products by type
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
 router.get('/type/:type', authMiddleware, productController.getProductsByType);
 
 /**
  * @route   GET /api/products/:id
  * @desc    Get product by ID
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
 router.get('/:id', authMiddleware, getProductValidation, productController.getProductById);
 
@@ -56,7 +56,7 @@ router.get('/:id', authMiddleware, getProductValidation, productController.getPr
 // Only admin can update product
 router.put('/:id', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengubah produk' });
     }
     next();
 }, updateProductValidation, productController.updateProduct);
@@ -69,7 +69,7 @@ router.put('/:id', authMiddleware, (req, res, next) => {
 // Only admin can delete product
 router.delete('/:id', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat menghapus produk' });
     }
     next();
 }, getProductValidation, productController.deleteProduct);
@@ -82,7 +82,7 @@ router.delete('/:id', authMiddleware, (req, res, next) => {
 // Only admin can toggle product status
 router.patch('/:id/toggle-status', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengubah status produk' });
     }
     next();
 }, getProductValidation, productController.toggleProductStatus);

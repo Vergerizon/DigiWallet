@@ -195,8 +195,33 @@ class TransactionService {
             // 7. Commit transaction
             await connection.commit();
             
+            // Get the created transaction
+            const createdTransaction = await this.getTransactionById(result.insertId);
+            
+            // 8. Schedule auto-complete after 3 minutes
+            setTimeout(async () => {
+                try {
+                    // Check if transaction is still PENDING before auto-completing
+                    const [currentStatus] = await pool.query(
+                        'SELECT status FROM transactions WHERE id = ?',
+                        [result.insertId]
+                    );
+                    
+                    if (currentStatus.length > 0 && currentStatus[0].status === 'PENDING') {
+                        // Auto-complete to SUCCESS
+                        await pool.query(
+                            "UPDATE transactions SET status = 'SUCCESS', notes = 'Transaksi otomatis diselesaikan' WHERE id = ?",
+                            [result.insertId]
+                        );
+                        console.log(`Transaction ${result.insertId} auto-completed to SUCCESS`);
+                    }
+                } catch (error) {
+                    console.error(`Error auto-completing transaction ${result.insertId}:`, error);
+                }
+            }, 3 * 60 * 1000); // 3 minutes
+            
             // Return transaction details
-            return this.getTransactionById(result.insertId);
+            return createdTransaction;
             
         } catch (error) {
             // Rollback transaction on error
@@ -467,6 +492,70 @@ class TransactionService {
                 refunded_amount: parseFloat(transaction.amount).toFixed(2),
                 user_new_balance: parseFloat(users[0].balance).toFixed(2)
             };
+            
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Complete/Mark transaction as SUCCESS (admin only)
+     * @param {number} id - Transaction ID
+     * @returns {object} Updated transaction
+     */
+    async completeTransaction(id) {
+        const connection = await pool.getConnection();
+        
+        try {
+            await connection.beginTransaction();
+            
+            // Get transaction with lock
+            const [transactions] = await connection.query(
+                'SELECT * FROM transactions WHERE id = ? FOR UPDATE',
+                [id]
+            );
+            
+            if (transactions.length === 0) {
+                const error = new Error(ERROR_MESSAGES.TRANSACTION_NOT_FOUND);
+                error.status = 404;
+                throw error;
+            }
+            
+            const transaction = transactions[0];
+            
+            // Check if already SUCCESS
+            if (transaction.status === 'SUCCESS') {
+                const error = new Error('Transaksi sudah berstatus SUCCESS');
+                error.status = 400;
+                throw error;
+            }
+            
+            // Check if transaction is cancelled or failed
+            if (transaction.status === 'FAILED' || transaction.status === 'REFUNDED') {
+                const error = new Error('Transaksi yang sudah dibatalkan atau direfund tidak dapat diselesaikan');
+                error.status = 400;
+                throw error;
+            }
+            
+            // Only PENDING transactions can be marked as SUCCESS
+            if (transaction.status !== 'PENDING') {
+                const error = new Error('Hanya transaksi PENDING yang dapat diselesaikan');
+                error.status = 400;
+                throw error;
+            }
+            
+            // Update transaction status to SUCCESS
+            await connection.query(
+                "UPDATE transactions SET status = 'SUCCESS', notes = 'Transaksi diselesaikan oleh admin' WHERE id = ?",
+                [id]
+            );
+            
+            await connection.commit();
+            
+            return await this.getTransactionById(id);
             
         } catch (error) {
             await connection.rollback();

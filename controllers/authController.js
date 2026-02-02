@@ -8,6 +8,12 @@ class AuthController {
      * Login user, create session and return token
      */
     async login(req, res) {
+        // Check if user is already logged in
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            return res.status(403).json({ message: 'Sudah login: Logout terlebih dahulu sebelum login kembali' });
+        }
+        
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({ message: 'Email dan password wajib diisi' });
@@ -19,7 +25,11 @@ class AuthController {
         const session = await sessionService.createSession(user.id);
         // Set token di header Authorization
         res.set('Authorization', 'Bearer ' + session.token);
-        return res.json({ session });
+        
+        // Hide user_id from response
+        const { user_id, ...sessionWithoutUserId } = session;
+        
+        return res.json({ session: sessionWithoutUserId });
     }
 
     /**

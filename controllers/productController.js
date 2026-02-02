@@ -44,7 +44,7 @@ class ProductController {
      * Get all products with pagination and filters
      * GET /api/products
      */
-    async getProducts(req, res) {
+    getProducts = async (req, res) => {
         try {
             const options = {
                 page: parseInt(req.query.page) || 1,
@@ -59,6 +59,12 @@ class ProductController {
                 price_max: req.query.price_max || null
             };
             const result = await productService.getProducts(options);
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                result.data = result.data.map(product => this.filterProductFields(product));
+            }
+            
             return paginatedResponse(
                 res, 
                 result.data, 
@@ -79,9 +85,15 @@ class ProductController {
      * Get product by ID
      * GET /api/products/:id
      */
-    async getProductById(req, res) {
+    getProductById = async (req, res) => {
         try {
-            const product = await productService.getProductById(parseInt(req.params.id));
+            let product = await productService.getProductById(parseInt(req.params.id));
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                product = this.filterProductFields(product);
+            }
+            
             return successResponse(res, product, SUCCESS_MESSAGES.PRODUCT_FETCHED);
         } catch (error) {
             return errorResponse(
@@ -143,9 +155,15 @@ class ProductController {
      * Get products by type
      * GET /api/products/type/:type
      */
-    async getProductsByType(req, res) {
+    getProductsByType = async (req, res) => {
         try {
-            const products = await productService.getProductsByType(req.params.type);
+            let products = await productService.getProductsByType(req.params.type);
+            
+            // Filter fields for USER role
+            if (req.user && req.user.role === 'USER') {
+                products = products.map(product => this.filterProductFields(product));
+            }
+            
             return successResponse(res, products, SUCCESS_MESSAGES.PRODUCTS_FETCHED);
         } catch (error) {
             return errorResponse(
@@ -178,6 +196,19 @@ class ProductController {
                 error
             );
         }
+    }
+
+    /**
+     * Filter product fields for USER role
+     * Only show name and price
+     */
+    filterProductFields(product) {
+        if (!product) return product;
+        
+        return {
+            name: product.name,
+            price: product.price
+        };
     }
 }
 

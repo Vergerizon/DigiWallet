@@ -8,6 +8,7 @@ const router = express.Router();
 const categoryController = require('../controllers/categoryController');
 const { body, param, query } = require('express-validator');
 const { handleValidationErrors } = require('../utils/validator');
+const { authMiddleware } = require('../middleware/auth');
 
 // Validation rules
 const createCategoryValidation = [
@@ -60,67 +61,87 @@ const getCategoryValidation = [
 /**
  * @route   POST /api/categories
  * @desc    Create new category
- * @access  Public
+ * @access  Admin only
  */
-router.post('/', createCategoryValidation, categoryController.createCategory);
+router.post('/', authMiddleware, (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat membuat kategori' });
+    }
+    next();
+}, createCategoryValidation, categoryController.createCategory);
 
 /**
  * @route   GET /api/categories
  * @desc    Get all categories (supports hierarchical and flat view)
- * @access  Public
+ * @access  User and Admin (read-only for user)
  * @query   parent_id - Filter by parent ID (use 'null' or 0 for root categories)
  * @query   is_active - Filter by active status
  * @query   flat - Set to 'true' for flat list, otherwise returns tree structure
  */
-router.get('/', categoryController.getCategories);
+router.get('/', authMiddleware, categoryController.getCategories);
 
 /**
  * @route   GET /api/categories/:id
  * @desc    Get category by ID
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
-router.get('/:id', getCategoryValidation, categoryController.getCategoryById);
+router.get('/:id', authMiddleware, getCategoryValidation, categoryController.getCategoryById);
 
 /**
  * @route   GET /api/categories/:id/products
  * @desc    Get category with its products
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
-router.get('/:id/products', getCategoryValidation, categoryController.getCategoryWithProducts);
+router.get('/:id/products', authMiddleware, getCategoryValidation, categoryController.getCategoryWithProducts);
 
 /**
  * @route   GET /api/categories/:id/subcategories
  * @desc    Get subcategories of a category
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
-router.get('/:id/subcategories', getCategoryValidation, categoryController.getSubcategories);
+router.get('/:id/subcategories', authMiddleware, getCategoryValidation, categoryController.getSubcategories);
 
 /**
  * @route   GET /api/categories/:id/path
  * @desc    Get category path (breadcrumb)
- * @access  Public
+ * @access  User and Admin (read-only for user)
  */
-router.get('/:id/path', getCategoryValidation, categoryController.getCategoryPath);
+router.get('/:id/path', authMiddleware, getCategoryValidation, categoryController.getCategoryPath);
 
 /**
  * @route   PUT /api/categories/:id
  * @desc    Update category
- * @access  Public
+ * @access  Admin only
  */
-router.put('/:id', updateCategoryValidation, categoryController.updateCategory);
+router.put('/:id', authMiddleware, (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengubah kategori' });
+    }
+    next();
+}, updateCategoryValidation, categoryController.updateCategory);
 
 /**
  * @route   DELETE /api/categories/:id
  * @desc    Delete category
- * @access  Public
+ * @access  Admin only
  */
-router.delete('/:id', getCategoryValidation, categoryController.deleteCategory);
+router.delete('/:id', authMiddleware, (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat menghapus kategori' });
+    }
+    next();
+}, getCategoryValidation, categoryController.deleteCategory);
 
 /**
  * @route   PATCH /api/categories/:id/toggle-status
  * @desc    Toggle category status (active/inactive)
- * @access  Public
+ * @access  Admin only
  */
-router.patch('/:id/toggle-status', getCategoryValidation, categoryController.toggleCategoryStatus);
+router.patch('/:id/toggle-status', authMiddleware, (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengubah status kategori' });
+    }
+    next();
+}, getCategoryValidation, categoryController.toggleCategoryStatus);
 
 module.exports = router;

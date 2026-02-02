@@ -17,10 +17,17 @@ const { authMiddleware } = require('../middleware/auth');
 
 /**
  * @route   POST /api/users
- * @desc    Create new user
- * @access  Public
+ * @desc    Create new user (Registration)
+ * @access  Public (only when not logged in)
  */
-router.post('/', createUserValidation, userController.createUser);
+router.post('/', (req, res, next) => {
+    // Check if user is already logged in
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return res.status(403).json({ message: 'Tidak dapat membuat user: Anda sudah login' });
+    }
+    next();
+}, createUserValidation, userController.createUser);
 
 /**
  * @route   GET /api/users
@@ -30,7 +37,7 @@ router.post('/', createUserValidation, userController.createUser);
 // Only admin can get all users
 router.get('/', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengakses' });
     }
     next();
 }, listUsersValidation, userController.getUsers);
@@ -43,7 +50,7 @@ router.get('/', authMiddleware, (req, res, next) => {
 // User can get own data, admin can get any
 router.get('/:id', authMiddleware, getUserValidation, (req, res, next) => {
     if (req.user.role !== 'ADMIN' && req.user.id !== parseInt(req.params.id)) {
-        return res.status(403).json({ message: 'Forbidden: Can only access own data' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya dapat mengakses data sendiri' });
     }
     next();
 }, userController.getUserById);
@@ -55,12 +62,13 @@ router.get('/:id', authMiddleware, getUserValidation, (req, res, next) => {
  */
 // User can update own data, admin can update any except password/email
 router.put('/:id', authMiddleware, updateUserValidation, (req, res, next) => {
-    if (req.user.role !== 'ADMIN' && req.user.id !== parseInt(req.params.id)) {
-        return res.status(403).json({ message: 'Forbidden: Can only update own data' });
+    const isSelf = req.user.id === parseInt(req.params.id);
+    if (req.user.role !== 'ADMIN' && !isSelf) {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya dapat mengubah data sendiri' });
     }
-    // Admin cannot update password/email
-    if (req.user.role === 'ADMIN' && (req.body.password || req.body.email)) {
-        return res.status(403).json({ message: 'Admin cannot change user password or email' });
+    // Admin can only update their own username, email, and password
+    if (req.user.role === 'ADMIN' && !isSelf && (req.body.password || req.body.email || req.body.name)) {
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Admin hanya dapat mengubah username, email, dan password milik sendiri' });
     }
     next();
 }, userController.updateUser);
@@ -73,7 +81,7 @@ router.put('/:id', authMiddleware, updateUserValidation, (req, res, next) => {
 // Only admin can delete users
 router.delete('/:id', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat menghapus user' });
     }
     next();
 }, getUserValidation, userController.deleteUser);
@@ -86,7 +94,7 @@ router.delete('/:id', authMiddleware, (req, res, next) => {
 // Only admin can top up user balance
 router.post('/:id/topup', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat top up saldo' });
     }
     next();
 }, getUserValidation, userController.topUpBalance);
@@ -94,7 +102,7 @@ router.post('/:id/topup', authMiddleware, (req, res, next) => {
 // Admin only: set user role
 router.patch('/:id/role', authMiddleware, (req, res, next) => {
     if (req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: 'Forbidden: Admin only' });
+        return res.status(403).json({ message: 'Tidak memiliki wewenang: Hanya admin yang dapat mengubah role user' });
     }
     next();
 }, userController.setUserRole);

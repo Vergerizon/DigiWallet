@@ -190,6 +190,24 @@ class TransactionController {
             );
         }
     }
+
+    /**
+     * Complete transaction (mark as SUCCESS) - Admin only
+     * PATCH /api/transactions/:id/complete
+     */
+    async completeTransaction(req, res) {
+        try {
+            const transaction = await transactionService.completeTransaction(parseInt(req.params.id));
+            return successResponse(res, transaction, 'Transaksi berhasil diselesaikan dan diubah menjadi SUCCESS');
+        } catch (error) {
+            return errorResponse(
+                res, 
+                error.message, 
+                error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                error
+            );
+        }
+    }
 }
 
 module.exports = new TransactionController();
